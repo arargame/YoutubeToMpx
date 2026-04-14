@@ -11,9 +11,9 @@ namespace YoutubeToMpx
     {
         private readonly YoutubeClient _client;
 
-        public YoutubeService()
+        public YoutubeService(YoutubeClient? client = null)
         {
-            _client = new YoutubeClient();
+            _client = client ?? new YoutubeClient();
         }
 
         /// <summary>
@@ -38,19 +38,27 @@ namespace YoutubeToMpx
             if (option.Container.Equals("mp3", StringComparison.OrdinalIgnoreCase))
             {
                 // Audio only – download and convert to mp3
-                await _client.Videos.DownloadAsync(new[] { option.StreamInfo },
-                    new ConversionRequestBuilder(filePath).SetContainer("mp3").Build(),
-                    progress);
+                if (option.StreamInfo != null)
+                {
+                    await _client.Videos.DownloadAsync(new[] { option.StreamInfo },
+                        new ConversionRequestBuilder(filePath).SetContainer("mp3").Build(),
+                        progress);
+                }
             }
             else
             {
                 // Video download – merge with highest‑bitrate audio stream
-                var videoInfo = (IVideoStreamInfo)option.StreamInfo!;
-                var audioInfo = manifest.GetAudioStreams().GetWithHighestBitrate();
-                var streams = audioInfo != null ? new IStreamInfo[] { videoInfo, audioInfo } : new IStreamInfo[] { videoInfo };
-                await _client.Videos.DownloadAsync(streams,
-                    new ConversionRequestBuilder(filePath).Build(),
-                    progress);
+                if (option.StreamInfo is IVideoStreamInfo videoInfo)
+                {
+                    var audioInfo = manifest.GetAudioStreams().GetWithHighestBitrate();
+                    var streams = audioInfo != null
+                        ? new IStreamInfo[] { videoInfo, audioInfo }
+                        : new IStreamInfo[] { videoInfo };
+
+                    await _client.Videos.DownloadAsync(streams,
+                        new ConversionRequestBuilder(filePath).Build(),
+                        progress);
+                }
             }
 
             Console.WriteLine("\nDownload complete!");

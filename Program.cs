@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,6 +12,9 @@ namespace YoutubeToMpx
     {
         static async Task Main(string[] args)
         {
+            // Background update check
+            var updateCheckTask = NuGetVersionChecker.CheckForUpdatesAsync();
+
             Console.WriteLine("Please enter the YouTube video URL:");
             string videoUrl = Console.ReadLine();
             while (string.IsNullOrWhiteSpace(videoUrl))
@@ -82,6 +85,16 @@ namespace YoutubeToMpx
                 Console.WriteLine($"Author: {youtubeObject.Author}");
                 Console.WriteLine($"Duration: {youtubeObject.Duration}");
 
+                // Check update check results
+                var updateResult = await updateCheckTask;
+                if (updateResult.UpdateAvailable)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"\n[HINT] A newer version of YoutubeExplode is available: v{updateResult.LatestVersion}");
+                    Console.WriteLine("If you experience errors, please run 'UpdateDeps.ps1' to update.");
+                    Console.ResetColor();
+                }
+
                 Console.WriteLine("\nGetting available streams...");
                 var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
                 youtubeObject.Manifest = streamManifest;
@@ -141,12 +154,22 @@ namespace YoutubeToMpx
                 var selectedOption = youtubeObject.AvailableOptions[selectedIndex];
 
                 // Perform download via service
-                var youtubeService = new YoutubeService();
+                var youtubeService = new YoutubeService(youtube);
                 await youtubeService.DownloadAsync(videoUrl, outputDirectory, selectedOption);
+            }
+            catch (Exception ex) when (ex.Message.Contains("403"))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Error.WriteLine("\n[ERROR] YouTube access was forbidden (403).");
+                Console.Error.WriteLine("This usually means YouTube has updated its security measures.");
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("\n>>> SOLUTION: Please run 'UpdateDeps.ps1' in the project folder to attempt an automatic update.");
+                Console.ResetColor();
+                Console.Error.WriteLine($"\nTechnical Details: {ex.Message}");
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"An error occurred: {ex.Message}");
+                Console.Error.WriteLine($"\nAn error occurred: {ex.Message}");
                 if (ex.Message.Contains("ffmpeg"))
                 {
                     Console.WriteLine("Make sure ffmpeg.exe is in the application folder!");
