@@ -35,7 +35,7 @@ namespace YoutubeToMpx
 
             var progress = new Progress<double>(p => Console.Write($"\rProgress: {p:P0}"));
 
-            if (option.Container.Equals("mp3", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(option.Container, "mp3", StringComparison.OrdinalIgnoreCase))
             {
                 // Audio only – download and convert to mp3
                 if (option.StreamInfo != null)
